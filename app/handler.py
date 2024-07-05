@@ -4,6 +4,10 @@ import requests
 from app.database import register_card, get_card_by_uid, update_playlist
 from config.config import MUSIC_HOST, MUSIC_PORT
 
+async def log_and_send(websocket, message):
+    print(f"Sent to WebSocket: {json.dumps(message)}")
+    await websocket.send(json.dumps(message))
+
 async def handle_read(websocket, rfid_reader):
     async def read_rfid():
         last_uid = None
@@ -28,12 +32,10 @@ async def handle_read(websocket, rfid_reader):
                         ws_response = {"status": "success", "uid": uid, "playlist": playlist.playlist}
                     else:
                         ws_response = {"status": "error", "message": "Failed to launch playlist", "uid": uid}
-                    await websocket.send(json.dumps(ws_response))
-                    print(f"Sent to WebSocket: {json.dumps(ws_response)}")
+                    await log_and_send(websocket, ws_response)
                 else:
                     response = {"status": "error", "message": "Unknown card", "uid": uid}
-                    await websocket.send(json.dumps(response))
-                    print(f"Sent to WebSocket: {json.dumps(response)}")
+                    await log_and_send(websocket, response)
                 # Wait for the card to be removed before continuing
                 card_detected = True
                 while rfid_reader.read_uid() == (True, uid):
@@ -43,8 +45,7 @@ async def handle_read(websocket, rfid_reader):
                     await asyncio.sleep(0.1)
                 # Inform the WebSocket that read mode is active
                 read_mode_response = {"status": "info", "message": "Read mode active"}
-                await websocket.send(json.dumps(read_mode_response))
-                print(f"Sent to WebSocket: {json.dumps(read_mode_response)}")
+                await log_and_send(websocket, read_mode_response)
             elif not success:
                 last_uid = None
                 card_present = False
@@ -59,8 +60,7 @@ async def handle_client(websocket, path, rfid_reader):
 
     # Inform the client about the current mode
     initial_mode_response = {"status": "info", "message": "Read mode active"}
-    await websocket.send(json.dumps(initial_mode_response))
-    print(f"Sent to WebSocket: {json.dumps(initial_mode_response)}")
+    await log_and_send(websocket, initial_mode_response)
 
     try:
         async for message in websocket:
@@ -89,8 +89,7 @@ async def handle_client(websocket, path, rfid_reader):
                     if existing_card:
                         print(f"UID {uid} already registered. Asking for overwrite confirmation.")
                         response = {"status": "info", "message": "This card is already registered, overwrite?"}
-                        await websocket.send(json.dumps(response))
-                        print(f"Sent to WebSocket: {json.dumps(response)}")
+                        await log_and_send(websocket, response)
 
                         try:
                             confirm_start_time = asyncio.get_event_loop().time()
@@ -103,15 +102,13 @@ async def handle_client(websocket, path, rfid_reader):
                                         print(f"Overwriting card with UID: {uid}")
                                         update_playlist(existing_card.id, playlist)
                                         response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist}
-                                        await websocket.send(json.dumps(response))
-                                        print(f"Sent to WebSocket: {json.dumps(response)}")
+                                        await log_and_send(websocket, response)
                                         confirmation_received = True
                                         break
                                     elif confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "no":
                                         print(f"Card with UID: {uid} not overwritten")
                                         response = {"status": "info", "message": "Card not overwritten"}
-                                        await websocket.send(json.dumps(response))
-                                        print(f"Sent to WebSocket: {json.dumps(response)}")
+                                        await log_and_send(websocket, response)
                                         confirmation_received = True
                                         break
                                 except asyncio.TimeoutError:
@@ -121,16 +118,14 @@ async def handle_client(websocket, path, rfid_reader):
                                 raise asyncio.TimeoutError
                         except asyncio.TimeoutError:
                             response = {"status": "error", "message": "No reply within timeout. Card not overwritten."}
-                            await websocket.send(json.dumps(response))
-                            print(f"Sent to WebSocket: {json.dumps(response)}")
+                            await log_and_send(websocket, response)
                             print("Timeout: No reply received for overwrite confirmation")
 
                     else:
                         print(f"Registering new card with UID: {uid}")
                         register_card(uid, playlist)
                         response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist}
-                        await websocket.send(json.dumps(response))
-                        print(f"Sent to WebSocket: {json.dumps(response)}")
+                        await log_and_send(websocket, response)
 
                     # Wait for the card to be removed before resuming read task
                     card_detected = True
@@ -142,13 +137,11 @@ async def handle_client(websocket, path, rfid_reader):
 
                     print("Card removed, resuming read task")
                     read_mode_response = {"status": "info", "message": "Read mode active"}
-                    await websocket.send(json.dumps(read_mode_response))
-                    print(f"Sent to WebSocket: {json.dumps(read_mode_response)}")
+                    await log_and_send(websocket, read_mode_response)
 
                 except asyncio.TimeoutError:
                     response = {"status": "error", "message": "No card detected within timeout"}
-                    await websocket.send(json.dumps(response))
-                    print(f"Sent to WebSocket: {json.dumps(response)}")
+                    await log_and_send(websocket, response)
                     print("Timeout: No card detected")
 
             elif action == "stop_read":
@@ -158,6 +151,5 @@ async def handle_client(websocket, path, rfid_reader):
         pass
     except Exception as e:
         response = {"status": "error", "message": str(e)}
-        await websocket.send(json.dumps(response))
-        print(f"Sent to WebSocket: {json.dumps(response)}")
+        await log_and_send(websocket, response)
         print(f"Exception occurred: {e}")
