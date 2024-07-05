@@ -46,9 +46,16 @@ async def handle_client(websocket, path, rfid_reader):
                 playlist = data.get("playlist")
                 print(f"Registering with playlist: {playlist}")
                 try:
-                    success, uid = await asyncio.wait_for(asyncio.to_thread(rfid_reader.read_uid), timeout=60)
+                    start_time = asyncio.get_event_loop().time()
+                    uid = None
+                    while asyncio.get_event_loop().time() - start_time < 60:
+                        success, uid = await asyncio.to_thread(rfid_reader.read_uid)
+                        if success:
+                            break
+                        await asyncio.sleep(0.1)
                     if not success:
                         raise asyncio.TimeoutError
+
                     print(f"Scanned UID: {uid}")
                     existing_card = get_card_by_uid(uid)
 
