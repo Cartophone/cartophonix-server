@@ -4,9 +4,14 @@ import requests
 from app.database import register_card, get_card_by_uid, update_playlist
 from config.config import MUSIC_HOST, MUSIC_PORT
 
-async def log_and_send(websocket, message):
-    print(f"Sent to WebSocket: {json.dumps(message)}")
-    await websocket.send(json.dumps(message))
+async def log_and_send(websocket, message, to_websocket=True):
+    print(f"Log: {json.dumps(message)}")
+    if to_websocket:
+        try:
+            await websocket.send(json.dumps(message))
+            print(f"Sent to WebSocket: {json.dumps(message)}")
+        except Exception as e:
+            print(f"Failed to send to WebSocket: {e}")
 
 async def handle_read(websocket, rfid_reader):
     async def read_rfid():
