@@ -87,16 +87,46 @@ async def handle_client(websocket, path, rfid_reader):
                     existing_card = get_card_by_uid(uid)
 
                     if existing_card:
-                        print(f"Updating existing card with UID: {uid}")
-                        update_playlist(existing_card.id, playlist)
-                        response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist}
+                        print(f"UID {uid} already registered. Asking for overwrite confirmation.")
+                        response = {"status": "info", "message": "This card is already registered, overwrite?"}
+                        await websocket.send(json.dumps(response))
+                        print(f"Sent to WebSocket: {json.dumps(response)}")
+
+                        try:
+                            confirm_start_time = asyncio.get_event_loop().time()
+                            confirmation_received = False
+                            while asyncio.get_event_loop().time() - confirm_start_time < 60:
+                                confirm_message = await asyncio.wait_for(websocket.recv(), timeout=1)
+                                confirm_data = json.loads(confirm_message)
+                                if confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "yes":
+                                    print(f"Overwriting card with UID: {uid}")
+                                    update_playlist(existing_card.id, playlist)
+                                    response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist}
+                                    await websocket.send(json.dumps(response))
+                                    print(f"Sent to WebSocket: {json.dumps(response)}")
+                                    confirmation_received = True
+                                    break
+                                elif confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "no":
+                                    print(f"Card with UID: {uid} not overwritten")
+                                    response = {"status": "info", "message": "Card not overwritten"}
+                                    await websocket.send(json.dumps(response))
+                                    print(f"Sent to WebSocket: {json.dumps(response)}")
+                                    confirmation_received = True
+                                    break
+                            if not confirmation_received:
+                                raise asyncio.TimeoutError
+                        except asyncio.TimeoutError:
+                            response = {"status": "error", "message": "No reply within timeout. Card not overwritten."}
+                            await websocket.send(json.dumps(response))
+                            print(f"Sent to WebSocket: {json.dumps(response)}")
+                            print("Timeout: No reply received for overwrite confirmation")
+
                     else:
                         print(f"Registering new card with UID: {uid}")
                         register_card(uid, playlist)
                         response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist}
-
-                    await websocket.send(json.dumps(response))
-                    print(f"Sent to WebSocket: {json.dumps(response)}")
+                        await websocket.send(json.dumps(response))
+                        print(f"Sent to WebSocket: {json.dumps(response)}")
 
                     # Wait for the card to be removed before resuming read task
                     card_detected = True
