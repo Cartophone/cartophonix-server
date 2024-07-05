@@ -1,7 +1,7 @@
 import json
 import asyncio
 import requests
-from app.database import register_card, get_card_by_uid, update_playlist, get_all_cards
+from app.database import register_card, get_card_by_uid, update_playlist
 from config.config import MUSIC_HOST, MUSIC_PORT
 
 async def handle_read(websocket, rfid_reader):
@@ -115,11 +115,6 @@ async def handle_client(websocket, path, rfid_reader):
                     print(f"Sent to WebSocket: {json.dumps(response)}")
                     print("Timeout: No card detected")
 
-            elif action == "edit":
-                cards = get_all_cards()
-                response = {"status": "success", "cards": cards}
-                await websocket.send(json.dumps(response))
-                print(f"Sent to WebSocket: {json.dumps(response)}")
             elif action == "stop_read":
                 read_task.cancel()
                 break
