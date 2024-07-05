@@ -27,7 +27,7 @@ async def handle_read(websocket, rfid_reader):
                 else:
                     response = {"status": "error", "message": "Unknown card", "uid": uid}
                     await websocket.send(json.dumps(response))
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
     read_task = asyncio.create_task(read_rfid())
     return read_task
@@ -52,7 +52,7 @@ async def handle_client(websocket, path, rfid_reader):
                         uid = rfid_reader.read_uid()
                         if uid:
                             break
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(0.1)
                     
                     if not uid:
                         raise asyncio.TimeoutError
@@ -74,7 +74,7 @@ async def handle_client(websocket, path, rfid_reader):
 
                     # Wait for the card to be removed before resuming read task
                     while rfid_reader.read_uid() == uid:
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(0.1)
 
                     print("Card removed, resuming read task")
                     read_task = await handle_read(websocket, rfid_reader)  # Resume the read task
