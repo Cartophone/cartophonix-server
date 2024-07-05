@@ -1,0 +1,4 @@
+pn532pi
+websockets
+aiohttp
+pocketbase
