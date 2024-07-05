@@ -6,9 +6,14 @@ from config.config import MUSIC_HOST, MUSIC_PORT
 
 async def handle_read(websocket, rfid_reader):
     async def read_rfid():
+        last_uid = None
+        card_present = False
+
         while True:
             success, uid = rfid_reader.read_uid()
-            if success:
+            if success and uid != last_uid:
+                last_uid = uid
+                card_present = True
                 playlist = get_card_by_uid(uid)
                 if playlist:
                     response = requests.post(
@@ -40,6 +45,9 @@ async def handle_read(websocket, rfid_reader):
                 read_mode_response = {"status": "info", "message": "Read mode active"}
                 await websocket.send(json.dumps(read_mode_response))
                 print(f"Sent to WebSocket: {json.dumps(read_mode_response)}")
+            elif not success:
+                last_uid = None
+                card_present = False
             await asyncio.sleep(0.1)
 
     read_task = asyncio.create_task(read_rfid())
