@@ -44,7 +44,7 @@ async def handle_client(websocket, path, rfid_reader):
                 read_task.cancel()  # Pause the read task
                 playlist = data.get("playlist")
                 print(f"Registering with playlist: {playlist}")
-                uid = await asyncio.wait_for(rfid_reader.read_uid(), timeout=60)
+                uid = await asyncio.to_thread(rfid_reader.read_uid)
                 print(f"Scanned UID: {uid}")
                 existing_card = get_card_by_uid(uid)
 
