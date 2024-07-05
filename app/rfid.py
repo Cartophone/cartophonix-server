@@ -14,7 +14,5 @@ class RFIDReader:
         success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
         if success:
             uid_string = ''.join('{:02x}'.format(i) for i in uid)
-            if uid_string:
-                print(f"UID read: {uid_string}")
-                return True, uid_string
+            return True, uid_string
         return False, None
