@@ -7,8 +7,8 @@ from config.config import MUSIC_HOST, MUSIC_PORT
 async def handle_read(websocket, rfid_reader):
     async def read_rfid():
         while True:
-            uid = rfid_reader.read_uid()
-            if uid:
+            success, uid = rfid_reader.read_uid()
+            if success:
                 playlist = get_card_by_uid(uid)
                 if playlist:
                     response = requests.post(
@@ -46,7 +46,9 @@ async def handle_client(websocket, path, rfid_reader):
                 playlist = data.get("playlist")
                 print(f"Registering with playlist: {playlist}")
                 try:
-                    uid = await asyncio.wait_for(asyncio.to_thread(rfid_reader.read_uid), timeout=60)
+                    success, uid = await asyncio.wait_for(asyncio.to_thread(rfid_reader.read_uid), timeout=60)
+                    if not success:
+                        raise asyncio.TimeoutError
                     print(f"Scanned UID: {uid}")
                     existing_card = get_card_by_uid(uid)
 
@@ -63,7 +65,7 @@ async def handle_client(websocket, path, rfid_reader):
                     print("Response sent to client")
 
                     # Wait for the card to be removed before resuming read task
-                    while rfid_reader.read_uid() == uid:
+                    while rfid_reader.read_uid() == (True, uid):
                         print("Card still detected, waiting for removal...")
                         await asyncio.sleep(0.1)
 
