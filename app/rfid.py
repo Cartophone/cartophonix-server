@@ -17,5 +17,4 @@ class RFIDReader:
             if uid_string:
                 print(f"UID read: {uid_string}")
                 return True, uid_string
-        print("No UID read")
         return False, None
