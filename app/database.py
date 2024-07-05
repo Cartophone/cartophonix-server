@@ -1,5 +1,4 @@
 from pocketbase import PocketBase
-from pocketbase.models.utils import BaseModel
 from config.config import POCKETBASE_URL
 
 client = PocketBase(POCKETBASE_URL)
@@ -14,7 +13,7 @@ def register_card(uid, playlist):
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
     if response.items:
-        return response.items[0].playlist
+        return response.items[0]
     return None
 
 def update_playlist(card_id, new_playlist):

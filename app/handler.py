@@ -14,13 +14,13 @@ async def handle_read(websocket, rfid_reader):
                     response = requests.post(
                         f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
                         params={
-                            'uris': playlist,
+                            'uris': playlist.playlist,
                             'playback': 'start',
                             'clear': 'true'
                         }
                     )
                     if response.status_code == 200:
-                        ws_response = {"status": "success", "uid": uid, "playlist": playlist}
+                        ws_response = {"status": "success", "uid": uid, "playlist": playlist.playlist}
                     else:
                         ws_response = {"status": "error", "message": "Failed to launch playlist", "uid": uid}
                     await websocket.send(json.dumps(ws_response))
