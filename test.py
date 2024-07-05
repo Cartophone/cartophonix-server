@@ -1,12 +1,19 @@
-import json
-import asyncio
-import requests
+import time
+from pn532pi import Pn532I2c, Pn532, pn532
+from config.config import I2C_BUS
 
-response = requests.post(
-    f"http://0.0.0.0:80/api/queue/items/add",
-        params={
-            'uris': "spotify:track:6BOgN046AFobs2sZV7YlRy",
-            'playback': 'start',
-            'clear': 'true'
-            }
-        )
+class RFIDReader:
+    def __init__(self):
+        self.i2c = Pn532I2c(I2C_BUS)
+        self.nfc = Pn532(self.i2c)
+        self.nfc.begin()
+        self.nfc.SAMConfig()
+        print("RFID reader initialized")
+
+    def read_uid(self):
+        while true:
+            print self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
+            sleep(1)
+
+NFC=RFIDReader()
+NFC.read_uid()
