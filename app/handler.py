@@ -46,7 +46,14 @@ async def handle_read(websocket, rfid_reader):
     return read_task
 
 async def handle_client(websocket, path, rfid_reader):
+    print("Client connected")
     read_task = await handle_read(websocket, rfid_reader)
+
+    # Inform the client about the current mode
+    initial_mode_response = {"status": "info", "message": "Read mode active"}
+    await websocket.send(json.dumps(initial_mode_response))
+    print(f"Sent to WebSocket: {json.dumps(initial_mode_response)}")
+
     try:
         async for message in websocket:
             print(f"Received message: {message}")
