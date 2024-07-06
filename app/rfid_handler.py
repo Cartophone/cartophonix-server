@@ -16,6 +16,7 @@ async def handle_read(websocket, rfid_reader):
                 card_present = True
                 playlist = get_card_by_uid(uid)
                 if playlist:
+                    print(playlist.playlist)
                     async with aiohttp.ClientSession() as session:
                         async with session.post(
                             f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
