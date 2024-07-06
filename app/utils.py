@@ -1,3 +1,5 @@
+import json
+
 async def log_and_send(websocket, message, to_websocket=True):
     print(f"Log: {json.dumps(message)}")
     if to_websocket and websocket:
