@@ -36,7 +36,8 @@ async def handle_read(websocket, rfid_reader):
                 card_detected = True
                 while rfid_reader.read_uid() == (True, uid):
                     if card_detected:
-                        print("Card still detected, waiting for removal...")
+                        card_detected_response = {"status": "info", "message": "Card still detected, waiting for removal..."}
+                        await log_and_send(websocket, card_detected_response)
                         card_detected = False
                     await asyncio.sleep(0.1)
                 # Inform the WebSocket that read mode is active
