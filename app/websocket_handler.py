@@ -2,6 +2,7 @@ import json
 import asyncio
 from app.database import register_card, get_card_by_uid, update_card, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm, delete_card
 from app.rfid_handler import handle_read
+from app.bluetooth_handler import scan_bluetooth_devices, connect_bluetooth_device
 from app.utils import log_and_send
 
 async def handle_client(websocket, path, rfid_reader):
@@ -136,6 +137,28 @@ async def handle_client(websocket, path, rfid_reader):
                 delete_card(card_id)
                 response = {"status": "success", "message": "Card deleted", "card_id": card_id}
                 await log_and_send(websocket, response)
+
+            elif action == "scan":
+                try:
+                    timeout = data.get("timeout", 30)  # Default timeout of 30 seconds
+                    devices = await scan_bluetooth_devices(timeout)
+                    response = {"status": "success", "devices": devices}
+                    await log_and_send(websocket, response)
+                except Exception as e:
+                    response = {"status": "error", "message": str(e)}
+                    await log_and_send(websocket, response)
+                    print(f"Exception occurred during Bluetooth scan: {e}")
+
+            elif action == "connect":
+                try:
+                    mac_address = data.get("mac_address")
+                    await connect_bluetooth_device(mac_address)
+                    response = {"status": "success", "message": f"Connected to {mac_address}"}
+                    await log_and_send(websocket, response)
+                except Exception as e:
+                    response = {"status": "error", "message": str(e)}
+                    await log_and_send(websocket, response)
+                    print(f"Exception occurred during Bluetooth connect: {e}")
 
             elif action == "stop_read":
                 read_task.cancel()
