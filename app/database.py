@@ -56,3 +56,6 @@ def edit_alarm(alarm_id, new_hour, new_playlist):
         "playlist": new_playlist
     }
     client.collection("alarms").update(alarm_id, data)
+
+def delete_alarm(alarm_id):
+    client.collection("alarms").delete(alarm_id)

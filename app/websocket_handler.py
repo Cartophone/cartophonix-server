@@ -1,6 +1,6 @@
 import json
 import asyncio
-from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm
+from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm
 from app.rfid_handler import handle_read
 from app.utils import log_and_send
 
@@ -118,6 +118,12 @@ async def handle_client(websocket, path, rfid_reader):
                 new_playlist = data.get("new_playlist")
                 edit_alarm(alarm_id, new_hour, new_playlist)
                 response = {"status": "success", "message": "Alarm updated", "alarm_id": alarm_id, "new_hour": new_hour, "new_playlist": new_playlist}
+                await log_and_send(websocket, response)
+
+            elif action == "delete_alarm":
+                alarm_id = data.get("alarm_id")
+                delete_alarm(alarm_id)
+                response = {"status": "success", "message": "Alarm deleted", "alarm_id": alarm_id}
                 await log_and_send(websocket, response)
 
             elif action == "stop_read":

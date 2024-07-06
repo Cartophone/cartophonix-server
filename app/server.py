@@ -16,7 +16,7 @@ async def main():
     read_task = await handle_read(None, rfid_reader)
 
     # Start the alarm checking task
-    alarm_task = asyncio.create_task(check_alarms())
+    alarm_task = asyncio.create_task(check_alarms(None))  # No WebSocket initially
 
     server = await websockets.serve(
         lambda ws, path: client_handler(ws, path, rfid_reader),
