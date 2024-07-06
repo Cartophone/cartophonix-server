@@ -1,5 +1,6 @@
 import base64
 import os
+import requests
 from pocketbase import PocketBase
 from config.config import POCKETBASE_URL
 
@@ -18,19 +19,17 @@ def register_card(uid, playlist, name, image=None):
         "playlist": playlist,
         "name": name
     }
-    files = None
     if image:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        files = {"image": open(temp_image_path, "rb")}
-    try:
-        if files:
-            client.collection("cards").create(data, files=files)
-        else:
-            client.collection("cards").create(data)
-    finally:
-        if files:
-            files["image"].close()
-            os.remove(temp_image_path)
+        with open(temp_image_path, "rb") as image_file:
+            files = {"image": image_file}
+            response = requests.post(f"{POCKETBASE_URL}/api/collections/cards/records", data=data, files=files)
+        os.remove(temp_image_path)
+    else:
+        response = requests.post(f"{POCKETBASE_URL}/api/collections/cards/records", json=data)
+    
+    if response.status_code != 200:
+        raise Exception(f"Failed to register card: {response.text}")
 
 def update_card(card_id, playlist, name=None, image=None):
     data = {
@@ -38,19 +37,22 @@ def update_card(card_id, playlist, name=None, image=None):
     }
     if name is not None:
         data["name"] = name
-    files = None
     if image is not None:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        files = {"image": open(temp_image_path, "rb")}
-    try:
-        if files:
-            client.collection("cards").update(card_id, data, files=files)
-        else:
-            client.collection("cards").update(card_id, data)
-    finally:
-        if files:
-            files["image"].close()
-            os.remove(temp_image_path)
+        with open(temp_image_path, "rb") as image_file:
+            files = {"image": image_file}
+            response = requests.patch(f"{POCKETBASE_URL}/api/collections/cards/records/{card_id}", data=data, files=files)
+        os.remove(temp_image_path)
+    else:
+        response = requests.patch(f"{POCKETBASE_URL}/api/collections/cards/records/{card_id}", json=data)
+    
+    if response.status_code != 200:
+        raise Exception(f"Failed to update card: {response.text}")
+
+def delete_card(card_id):
+    response = requests.delete(f"{POCKETBASE_URL}/api/collections/cards/records/{card_id}")
+    if response.status_code != 200:
+        raise Exception(f"Failed to delete card: {response.text}")
 
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
