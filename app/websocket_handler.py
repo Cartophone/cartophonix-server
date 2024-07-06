@@ -140,7 +140,7 @@ async def handle_client(websocket, path, rfid_reader):
 
             elif action == "scan":
                 try:
-                    timeout = data.get("timeout", 30)  # Default timeout of 30 seconds
+                    timeout = data.get("timeout", 10)  # Default timeout of 30 seconds
                     devices = await scan_bluetooth_devices(timeout)
                     response = {"status": "success", "devices": devices}
                     await log_and_send(websocket, response)
