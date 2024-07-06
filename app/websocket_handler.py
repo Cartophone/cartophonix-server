@@ -21,6 +21,7 @@ async def handle_client(websocket, path, rfid_reader):
                 read_task.cancel()  # Pause the read task
                 playlist = data.get("playlist")
                 name = data.get("name")
+                image = data.get("image")  # Optional
                 image_present = "image" in data
                 print(f"Registering with playlist: {playlist}, name: {name}, image_present: {image_present}")
                 try:
@@ -52,7 +53,7 @@ async def handle_client(websocket, path, rfid_reader):
                                     confirm_data = json.loads(confirm_message)
                                     if confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "yes":
                                         print(f"Overwriting card with UID: {uid}")
-                                        update_card(existing_card.id, playlist, name, data.get("image"))
+                                        update_card(existing_card.id, playlist, name, image)
                                         response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist, "name": name}
                                         await log_and_send(websocket, response)
                                         confirmation_received = True
@@ -75,7 +76,7 @@ async def handle_client(websocket, path, rfid_reader):
 
                     else:
                         print(f"Registering new card with UID: {uid}")
-                        register_card(uid, playlist, name, data.get("image"))
+                        register_card(uid, playlist, name, image)
                         response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist, "name": name}
                         await log_and_send(websocket, response)
 

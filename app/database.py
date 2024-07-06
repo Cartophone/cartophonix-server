@@ -21,12 +21,16 @@ def register_card(uid, playlist, name, image=None):
     files = None
     if image:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        with open(temp_image_path, "rb") as image_file:
-            files = {"image": image_file}
+        files = {"image": open(temp_image_path, "rb")}
+    try:
+        if files:
             client.collection("cards").create(data, files=files)
-        os.remove(temp_image_path)
-    else:
-        client.collection("cards").create(data)
+        else:
+            client.collection("cards").create(data)
+    finally:
+        if files:
+            files["image"].close()
+            os.remove(temp_image_path)
 
 def update_card(card_id, playlist, name=None, image=None):
     data = {
@@ -37,12 +41,16 @@ def update_card(card_id, playlist, name=None, image=None):
     files = None
     if image is not None:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        with open(temp_image_path, "rb") as image_file:
-            files = {"image": image_file}
+        files = {"image": open(temp_image_path, "rb")}
+    try:
+        if files:
             client.collection("cards").update(card_id, data, files=files)
-        os.remove(temp_image_path)
-    else:
-        client.collection("cards").update(card_id, data)
+        else:
+            client.collection("cards").update(card_id, data)
+    finally:
+        if files:
+            files["image"].close()
+            os.remove(temp_image_path)
 
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
