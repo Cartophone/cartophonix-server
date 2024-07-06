@@ -1,11 +1,10 @@
 import time
-from pn532pi import Pn532I2c, Pn532, pn532
-from config.config import I2C_BUS
+from pn532pi import Pn532Spi, Pn532, pn532
 
 class RFIDReader:
     def __init__(self):
-        self.i2c = Pn532I2c(I2C_BUS)
-        self.nfc = Pn532(self.i2c)
+        self.spi = Pn532Spi(Pn532Spi.SS0_GPIO8)
+        self.nfc = Pn532(self.spi)
         self.initialize()
 
     def initialize(self):
