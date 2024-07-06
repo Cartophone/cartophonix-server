@@ -13,7 +13,7 @@ class RFIDReader:
     def read_uid(self):
         while True:
             print(self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS))
-            time.sleep(1)
+            time.sleep(0.2)
 
 NFC=RFIDReader()
 NFC.read_uid()
