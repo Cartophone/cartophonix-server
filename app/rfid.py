@@ -11,8 +11,15 @@ class RFIDReader:
         print("RFID reader initialized")
 
     def read_uid(self):
-        success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
-        if success:
-            uid_string = ''.join('{:02x}'.format(i) for i in uid)
-            return True, uid_string
-        return False, None
+        while True:
+            try:
+                success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
+                if success:
+                    uid_string = ''.join('{:02x}'.format(i) for i in uid)
+                    if uid_string:
+                        return success, uid.hex()
+                time.sleep(0.2)
+            except Exception as e:
+                print(f"Error reading UID: {e}")
+                time.sleep(0.2)
+                continue
