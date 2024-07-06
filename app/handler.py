@@ -1,8 +1,9 @@
 import json
 import asyncio
 import requests
-from app.database import register_card, get_card_by_uid, update_playlist
+from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm
 from config.config import MUSIC_HOST, MUSIC_PORT
+import time
 
 async def log_and_send(websocket, message, to_websocket=True):
     print(f"Log: {json.dumps(message)}")
@@ -58,6 +59,24 @@ async def handle_read(websocket, rfid_reader):
 
     read_task = asyncio.create_task(read_rfid())
     return read_task
+
+async def check_alarms():
+    while True:
+        current_time = time.strftime("%H:%M")
+        alarms = list_alarms()
+        for alarm in alarms:
+            if alarm['hour'] == current_time and alarm['activated']:
+                response = requests.post(
+                    f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
+                    params={
+                        'uris': alarm['playlist'],
+                        'playback': 'start',
+                        'clear': 'true'
+                    }
+                )
+                if response.status_code == 200:
+                    print(f"Alarm triggered: {alarm['playlist']}")
+        await asyncio.sleep(60)
 
 async def handle_client(websocket, path, rfid_reader):
     print("Client connected")
@@ -149,9 +168,36 @@ async def handle_client(websocket, path, rfid_reader):
                     await log_and_send(websocket, response)
                     print("Timeout: No card detected")
 
+            elif action == "create_alarm":
+                hour = data.get("hour")
+                playlist = data.get("playlist")
+                create_alarm(hour, playlist)
+                response = {"status": "success", "message": "Alarm created", "hour": hour, "playlist": playlist}
+                await log_and_send(websocket, response)
+
+            elif action == "list_alarms":
+                alarms = list_alarms()
+                response = {"status": "success", "alarms": alarms}
+                await log_and_send(websocket, response)
+
+            elif action == "toggle_alarm":
+                alarm_id = data.get("alarm_id")
+                new_status = toggle_alarm(alarm_id)
+                response = {"status": "success", "message": "Alarm toggled", "new_status": new_status}
+                await log_and_send(websocket, response)
+
+            elif action == "edit_alarm":
+                alarm_id = data.get("alarm_id")
+                new_hour = data.get("new_hour")
+                new_playlist = data.get("new_playlist")
+                edit_alarm(alarm_id, new_hour, new_playlist)
+                response = {"status": "success", "message": "Alarm updated", "alarm_id": alarm_id, "new_hour": new_hour, "new_playlist": new_playlist}
+                await log_and_send(websocket, response)
+
             elif action == "stop_read":
                 read_task.cancel()
                 break
+
     except asyncio.CancelledError:
         pass
     except Exception as e:
