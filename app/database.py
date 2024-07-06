@@ -4,11 +4,14 @@ from config.config import POCKETBASE_URL
 
 client = PocketBase(POCKETBASE_URL)
 
-def register_card(uid, playlist):
+def register_card(uid, playlist, name, image=None):
     data = {
         "uid": uid,
-        "playlist": playlist
+        "playlist": playlist,
+        "name": name,
     }
+    if image:
+        data["image"] = image
     client.collection("cards").create(data)
 
 def get_card_by_uid(uid):
@@ -26,6 +29,9 @@ def update_playlist(card_id, new_playlist):
 def get_all_cards():
     response = client.collection("cards").get_list(1, 300)  # Adjust as necessary
     return [{"id": item.id, "uid": item.uid, "playlist": item.playlist} for item in response.items]
+
+def delete_card(card_id):
+    client.collection("cards").delete(card_id)
 
 # Alarms related functions
 

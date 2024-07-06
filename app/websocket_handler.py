@@ -1,6 +1,6 @@
 import json
 import asyncio
-from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm
+from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm, delete_card
 from app.rfid_handler import handle_read
 from app.utils import log_and_send
 
@@ -21,7 +21,9 @@ async def handle_client(websocket, path, rfid_reader):
             if action == "register":
                 read_task.cancel()  # Pause the read task
                 playlist = data.get("playlist")
-                print(f"Registering with playlist: {playlist}")
+                name = data.get("name")
+                image = data.get("image")  # Optional
+                print(f"Registering with playlist: {playlist}, name: {name}, image: {image}")
                 try:
                     start_time = asyncio.get_event_loop().time()
                     uid = None
@@ -73,14 +75,16 @@ async def handle_client(websocket, path, rfid_reader):
 
                     else:
                         print(f"Registering new card with UID: {uid}")
-                        register_card(uid, playlist)
-                        response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist}
+                        register_card(uid, playlist, name, image)
+                        response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist, "name": name, "image": image}
                         await log_and_send(websocket, response)
 
                     # Wait for the card to be removed before resuming read task
                     card_detected = True
                     while rfid_reader.read_uid() == (True, uid):
                         if card_detected:
+                            card_detected_response = {"status": "info", "message": "Card still detected, waiting for removal..."}
+                            await log_and_send(websocket, card_detected_response)
                             print("Card still detected, waiting for removal...")
                             card_detected = False
                         await asyncio.sleep(0.1)
@@ -124,6 +128,12 @@ async def handle_client(websocket, path, rfid_reader):
                 alarm_id = data.get("alarm_id")
                 delete_alarm(alarm_id)
                 response = {"status": "success", "message": "Alarm deleted", "alarm_id": alarm_id}
+                await log_and_send(websocket, response)
+
+            elif action == "delete_card":
+                card_id = data.get("card_id")
+                delete_card(card_id)
+                response = {"status": "success", "message": "Card deleted", "card_id": card_id}
                 await log_and_send(websocket, response)
 
             elif action == "stop_read":
