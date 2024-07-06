@@ -1,5 +1,5 @@
 import asyncio
-import requests
+import aiohttp
 from app.database import get_card_by_uid
 from config.config import MUSIC_HOST, MUSIC_PORT
 from app.utils import log_and_send
@@ -16,19 +16,20 @@ async def handle_read(websocket, rfid_reader):
                 card_present = True
                 playlist = get_card_by_uid(uid)
                 if playlist:
-                    response = requests.post(
-                        f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
-                        params={
-                            'uris': playlist.playlist,
-                            'playback': 'start',
-                            'clear': 'true'
-                        }
-                    )
-                    if response.status_code == 200:
-                        ws_response = {"status": "success", "uid": uid, "playlist": playlist.playlist}
-                    else:
-                        ws_response = {"status": "error", "message": "Failed to launch playlist", "uid": uid}
-                    await log_and_send(websocket, ws_response)
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                            f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
+                            params={
+                                'uris': playlist.playlist,
+                                'playback': 'start',
+                                'clear': 'true'
+                            }
+                        ) as response:
+                            if response.status == 200:
+                                ws_response = {"status": "success", "uid": uid, "playlist": playlist.playlist}
+                            else:
+                                ws_response = {"status": "error", "message": "Failed to launch playlist", "uid": uid}
+                            await log_and_send(websocket, ws_response)
                 else:
                     response = {"status": "error", "message": "Unknown card", "uid": uid}
                     await log_and_send(websocket, response)
@@ -40,14 +41,14 @@ async def handle_read(websocket, rfid_reader):
                         await log_and_send(websocket, card_detected_response)
                         print("Card still detected, waiting for removal...")
                         card_detected = False
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.2)
                 # Inform the WebSocket that read mode is active
                 read_mode_response = {"status": "info", "message": "Read mode active"}
                 await log_and_send(websocket, read_mode_response)
             elif not success:
                 last_uid = None
                 card_present = False
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
 
     read_task = asyncio.create_task(read_rfid())
     return read_task
