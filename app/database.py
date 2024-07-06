@@ -4,15 +4,24 @@ from config.config import POCKETBASE_URL
 
 client = PocketBase(POCKETBASE_URL)
 
+def save_temp_image(base64_data, filename):
+    image_data = base64.b64decode(base64_data)
+    temp_path = f"/tmp/{filename}"
+    with open(temp_path, "wb") as f:
+        f.write(image_data)
+    return temp_path
+
 def register_card(uid, playlist, name, image=None):
     data = {
         "uid": uid,
         "playlist": playlist,
         "name": name
     }
+    files = None
     if image:
-        data["image"] = image
-    client.collection("cards").create(data)
+        temp_image_path = save_temp_image(image, "card_image.jpg")
+        files = {"image": open(temp_image_path, "rb")}
+    client.collection("cards").create(data, files=files)
 
 def update_card(card_id, playlist, name=None, image=None):
     data = {
@@ -20,9 +29,11 @@ def update_card(card_id, playlist, name=None, image=None):
     }
     if name is not None:
         data["name"] = name
+    files = None
     if image is not None:
-        data["image"] = image
-    client.collection("cards").update(card_id, data)
+        temp_image_path = save_temp_image(image, "card_image.jpg")
+        files = {"image": open(temp_image_path, "rb")}
+    client.collection("cards").update(card_id, data, files=files)
 
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
