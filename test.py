@@ -1,6 +1,5 @@
 import time
 from pn532pi import Pn532Spi, Pn532, pn532
-from config.config import SPI_GPIO
 
 class RFIDReader:
     def __init__(self):
