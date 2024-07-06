@@ -6,9 +6,19 @@ class RFIDReader:
     def __init__(self):
         self.i2c = Pn532I2c(I2C_BUS)
         self.nfc = Pn532(self.i2c)
-        self.nfc.begin()
-        self.nfc.SAMConfig()
-        print("RFID reader initialized")
+        self.initialize()
+
+    def initialize(self):
+        for attempt in range(5):  # Retry up to 5 times
+            try:
+                self.nfc.begin()
+                self.nfc.SAMConfig()
+                print("RFID reader initialized")
+                return
+            except OSError as e:
+                print(f"Initialization attempt {attempt + 1} failed: {e}")
+                time.sleep(1)
+        raise RuntimeError("Failed to initialize RFID reader after several attempts")
 
     def read_uid(self):
         while True:
