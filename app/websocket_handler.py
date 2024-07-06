@@ -1,6 +1,6 @@
 import json
 import asyncio
-from app.database import register_card, get_card_by_uid, update_playlist, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm, delete_card
+from app.database import register_card, get_card_by_uid, update_card, create_alarm, list_alarms, toggle_alarm, edit_alarm, delete_alarm, delete_card
 from app.rfid_handler import handle_read
 from app.utils import log_and_send
 
@@ -52,8 +52,8 @@ async def handle_client(websocket, path, rfid_reader):
                                     confirm_data = json.loads(confirm_message)
                                     if confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "yes":
                                         print(f"Overwriting card with UID: {uid}")
-                                        update_playlist(existing_card.id, playlist)
-                                        response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist}
+                                        update_card(existing_card.id, playlist, name, image)
+                                        response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist, "name": name, "image": image}
                                         await log_and_send(websocket, response)
                                         confirmation_received = True
                                         break

@@ -8,11 +8,21 @@ def register_card(uid, playlist, name, image=None):
     data = {
         "uid": uid,
         "playlist": playlist,
-        "name": name,
+        "name": name
     }
     if image:
         data["image"] = image
     client.collection("cards").create(data)
+
+def update_card(card_id, playlist, name=None, image=None):
+    data = {
+        "playlist": playlist
+    }
+    if name is not None:
+        data["name"] = name
+    if image is not None:
+        data["image"] = image
+    client.collection("cards").update(card_id, data)
 
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
