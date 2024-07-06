@@ -1,5 +1,6 @@
+import base64
+import os
 from pocketbase import PocketBase
-from pocketbase.models.utils import BaseModel
 from config.config import POCKETBASE_URL
 
 client = PocketBase(POCKETBASE_URL)
@@ -20,8 +21,12 @@ def register_card(uid, playlist, name, image=None):
     files = None
     if image:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        files = {"image": open(temp_image_path, "rb")}
-    client.collection("cards").create(data, files=files)
+        with open(temp_image_path, "rb") as image_file:
+            files = {"image": image_file}
+            client.collection("cards").create(data, files=files)
+        os.remove(temp_image_path)
+    else:
+        client.collection("cards").create(data)
 
 def update_card(card_id, playlist, name=None, image=None):
     data = {
@@ -32,8 +37,12 @@ def update_card(card_id, playlist, name=None, image=None):
     files = None
     if image is not None:
         temp_image_path = save_temp_image(image, "card_image.jpg")
-        files = {"image": open(temp_image_path, "rb")}
-    client.collection("cards").update(card_id, data, files=files)
+        with open(temp_image_path, "rb") as image_file:
+            files = {"image": image_file}
+            client.collection("cards").update(card_id, data, files=files)
+        os.remove(temp_image_path)
+    else:
+        client.collection("cards").update(card_id, data)
 
 def get_card_by_uid(uid):
     response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})

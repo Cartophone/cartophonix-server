@@ -14,7 +14,6 @@ async def handle_client(websocket, path, rfid_reader):
 
     try:
         async for message in websocket:
-            print(f"Received message: {message}")
             data = json.loads(message)
             action = data.get("action")
 
@@ -22,8 +21,8 @@ async def handle_client(websocket, path, rfid_reader):
                 read_task.cancel()  # Pause the read task
                 playlist = data.get("playlist")
                 name = data.get("name")
-                image = data.get("image")  # Optional
-                print(f"Registering with playlist: {playlist}, name: {name}, image: {image}")
+                image_present = "image" in data
+                print(f"Registering with playlist: {playlist}, name: {name}, image_present: {image_present}")
                 try:
                     start_time = asyncio.get_event_loop().time()
                     uid = None
@@ -53,8 +52,8 @@ async def handle_client(websocket, path, rfid_reader):
                                     confirm_data = json.loads(confirm_message)
                                     if confirm_data.get("action") == "overwrite" and confirm_data.get("confirm") == "yes":
                                         print(f"Overwriting card with UID: {uid}")
-                                        update_card(existing_card.id, playlist, name, image)
-                                        response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist, "name": name, "image": image}
+                                        update_card(existing_card.id, playlist, name, data.get("image"))
+                                        response = {"status": "success", "message": "Card updated", "uid": uid, "playlist": playlist, "name": name}
                                         await log_and_send(websocket, response)
                                         confirmation_received = True
                                         break
@@ -76,8 +75,8 @@ async def handle_client(websocket, path, rfid_reader):
 
                     else:
                         print(f"Registering new card with UID: {uid}")
-                        register_card(uid, playlist, name, image)
-                        response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist, "name": name, "image": image}
+                        register_card(uid, playlist, name, data.get("image"))
+                        response = {"status": "success", "message": "Card registered", "uid": uid, "playlist": playlist, "name": name}
                         await log_and_send(websocket, response)
 
                     # Wait for the card to be removed before resuming read task
