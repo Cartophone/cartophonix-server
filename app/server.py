@@ -1,7 +1,9 @@
 import asyncio
 import websockets
 from config.config import WEBSOCKET_HOST, WEBSOCKET_PORT
-from app.handler import handle_client, handle_read, check_alarms
+from app.websocket_handler import handle_client
+from app.rfid_handler import handle_read
+from app.alarm_handler import check_alarms
 from app.rfid import RFIDReader
 
 async def client_handler(ws, path, rfid_reader):
