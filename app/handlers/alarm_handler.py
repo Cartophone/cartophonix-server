@@ -1,8 +1,6 @@
-# app/handlers/alarm_handler.py
-
 import asyncio
 from datetime import datetime
-from app.database import get_all_alarms, update_playlist
+from app.database import get_all_alarms
 from config.config import MUSIC_HOST, MUSIC_PORT
 import aiohttp
 
