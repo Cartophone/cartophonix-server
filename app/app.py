@@ -37,32 +37,43 @@ async def register():
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
-    data = await request.get_json()
-    playlist = data.get('playlist')
-    name = data.get('name')
-    image = data.get('image')  # This should be base64 encoded
-    uid = await rfid_reader.read_uid()  # Wait for card scan
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data: {data}")
+        playlist = data.get('playlist')
+        name = data.get('name')
+        image = data.get('image')  # This should be base64 encoded
+        uid = await rfid_reader.read_uid()  # Wait for card scan
+        logging.info(f"Scanned UID: {uid}")
 
-    existing_playlist = get_card_by_uid(uid)
-    if existing_playlist:
-        response = {
-            "status": "exists",
-            "message": "This card is already registered, overwrite?",
-            "uid": uid,
-            "playlist": existing_playlist
-        }
-    else:
-        register_card(uid, playlist, name, image)
-        response = {
-            "status": "success",
-            "message": "Card registered",
-            "uid": uid,
-            "playlist": playlist,
-            "name": name
-        }
+        existing_playlist = get_card_by_uid(uid)
+        logging.info(f"Existing playlist: {existing_playlist}")
 
-    read_mode_active = True  # Resume read mode
-    return jsonify(response)
+        if existing_playlist:
+            response = {
+                "status": "exists",
+                "message": "This card is already registered, overwrite?",
+                "uid": uid,
+                "playlist": existing_playlist
+            }
+        else:
+            register_card(uid, playlist, name, image)
+            response = {
+                "status": "success",
+                "message": "Card registered",
+                "uid": uid,
+                "playlist": playlist,
+                "name": name
+            }
+
+        logging.info(f"Response: {response}")
+        read_mode_active = True  # Resume read mode
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in register endpoint: {e}")
+        read_mode_active = True  # Resume read mode in case of error
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/register/overwrite', methods=['POST'])
 async def register_overwrite():
@@ -70,23 +81,31 @@ async def register_overwrite():
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
-    data = await request.get_json()
-    playlist = data.get('playlist')
-    name = data.get('name')
-    image = data.get('image')  # This should be base64 encoded
-    uid = data.get('uid')
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for overwrite: {data}")
+        playlist = data.get('playlist')
+        name = data.get('name')
+        image = data.get('image')  # This should be base64 encoded
+        uid = data.get('uid')
 
-    update_playlist(uid, playlist, name, image)
-    response = {
-        "status": "success",
-        "message": "Card updated",
-        "uid": uid,
-        "playlist": playlist,
-        "name": name
-    }
+        update_playlist(uid, playlist, name, image)
+        response = {
+            "status": "success",
+            "message": "Card updated",
+            "uid": uid,
+            "playlist": playlist,
+            "name": name
+        }
 
-    read_mode_active = True  # Resume read mode
-    return jsonify(response)
+        logging.info(f"Response: {response}")
+        read_mode_active = True  # Resume read mode
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in register overwrite endpoint: {e}")
+        read_mode_active = True  # Resume read mode in case of error
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/delete', methods=['POST'])
 async def delete():
@@ -94,90 +113,144 @@ async def delete():
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
-    data = await request.get_json()
-    card_id = data.get('card_id')
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for delete: {data}")
+        card_id = data.get('card_id')
 
-    delete_card(card_id)
-    response = {
-        "status": "success",
-        "message": "Card deleted",
-        "card_id": card_id
-    }
+        delete_card(card_id)
+        response = {
+            "status": "success",
+            "message": "Card deleted",
+            "card_id": card_id
+        }
 
-    read_mode_active = True  # Resume read mode
-    return jsonify(response)
+        logging.info(f"Response: {response}")
+        read_mode_active = True  # Resume read mode
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in delete endpoint: {e}")
+        read_mode_active = True  # Resume read mode in case of error
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/alarm', methods=['POST'])
 async def create_alarm():
     logging.info("Create alarm endpoint hit")
-    data = await request.get_json()
-    hour = data.get('hour')
-    playlist = data.get('playlist')
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for alarm: {data}")
+        hour = data.get('hour')
+        playlist = data.get('playlist')
 
-    create_alarm(hour, playlist)
-    response = {
-        "status": "success",
-        "message": "Alarm created",
-        "hour": hour,
-        "playlist": playlist
-    }
-    return jsonify(response)
+        create_alarm(hour, playlist)
+        response = {
+            "status": "success",
+            "message": "Alarm created",
+            "hour": hour,
+            "playlist": playlist
+        }
+
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in create alarm endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/alarms', methods=['GET'])
 async def list_alarms():
     logging.info("List alarms endpoint hit")
-    alarms = list_alarms()
-    response = {
-        "status": "success",
-        "alarms": alarms
-    }
-    return jsonify(response)
+    try:
+        alarms = list_alarms()
+        response = {
+            "status": "success",
+            "alarms": alarms
+        }
+
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in list alarms endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/toggle_alarm', methods=['POST'])
 async def toggle_alarm():
     logging.info("Toggle alarm endpoint hit")
-    data = await request.get_json()
-    alarm_id = data.get('alarm_id')
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for toggle alarm: {data}")
+        alarm_id = data.get('alarm_id')
 
-    toggle_alarm(alarm_id)
-    response = {
-        "status": "success",
-        "message": "Alarm toggled",
-        "alarm_id": alarm_id
-    }
-    return jsonify(response)
+        toggle_alarm(alarm_id)
+        response = {
+            "status": "success",
+            "message": "Alarm toggled",
+            "alarm_id": alarm_id
+        }
+
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in toggle alarm endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/edit_alarm', methods=['POST'])
 async def edit_alarm():
     logging.info("Edit alarm endpoint hit")
-    data = await request.get_json()
-    alarm_id = data.get('alarm_id')
-    new_hour = data.get('new_hour')
-    new_playlist = data.get('new_playlist')
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for edit alarm: {data}")
+        alarm_id = data.get('alarm_id')
+        new_hour = data.get('new_hour')
+        new_playlist = data.get('new_playlist')
 
-    edit_alarm(alarm_id, new_hour, new_playlist)
-    response = {
-        "status": "success",
-        "message": "Alarm edited",
-        "alarm_id": alarm_id,
-        "new_hour": new_hour,
-        "new_playlist": new_playlist
-    }
-    return jsonify(response)
+        edit_alarm(alarm_id, new_hour, new_playlist)
+        response = {
+            "status": "success",
+            "message": "Alarm edited",
+            "alarm_id": alarm_id,
+            "new_hour": new_hour,
+            "new_playlist": new_playlist
+        }
+
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in edit alarm endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/bluetooth/scan', methods=['GET'])
 async def bluetooth_scan():
     logging.info("Bluetooth scan endpoint hit")
-    devices = await scan_bluetooth()
-    return jsonify({"status": "success", "devices": devices})
+    try:
+        devices = await scan_bluetooth()
+        response = {"status": "success", "devices": devices}
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in bluetooth scan endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route('/bluetooth/connect', methods=['POST'])
 async def bluetooth_connect():
     logging.info("Bluetooth connect endpoint hit")
-    data = await request.get_json()
-    mac_address = data.get('mac_address')
-    await connect_bluetooth(mac_address)
-    return jsonify({"status": "success", "message": f"Connected to {mac_address}"})
+    try:
+        data = await request.get_json()
+        logging.info(f"Received data for bluetooth connect: {data}")
+        mac_address = data.get('mac_address')
+        await connect_bluetooth(mac_address)
+        response = {"status": "success", "message": f"Connected to {mac_address}"}
+        logging.info(f"Response: {response}")
+        return jsonify(response)
+
+    except Exception as e:
+        logging.error(f"Error in bluetooth connect endpoint: {e}")
+        return jsonify({"status": "error", "message": str(e)})
 
 async def run_background_tasks():
     asyncio.create_task(handle_read(rfid_reader))
