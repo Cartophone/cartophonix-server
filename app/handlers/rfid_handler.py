@@ -1,6 +1,5 @@
 import time
 from pn532pi import Pn532Spi, Pn532, pn532
-from app.utils import log_and_send
 
 class RFIDReader:
     def __init__(self):
