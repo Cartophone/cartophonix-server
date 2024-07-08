@@ -1,4 +1,4 @@
 # app/__init__.py
 
 from .app import app
-from .handlers import rfid_reader
+from .handlers import rfid_reader, check_alarms
