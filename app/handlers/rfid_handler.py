@@ -1,34 +1,20 @@
-import asyncio
-import aiohttp
-from app.database import get_card_by_uid
-from config.config import MUSIC_HOST, MUSIC_PORT
+import time
+from pn532pi import Pn532Spi, Pn532, pn532
 from app.utils import log_and_send
 
-async def handle_read(rfid_reader):
-    last_uid = None
-    while True:
-        success, uid = await rfid_reader.read_uid()
-        if success and uid != last_uid:
-            last_uid = uid
-            playlist = get_card_by_uid(uid)
-            if playlist:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        f"http://{MUSIC_HOST}:{MUSIC_PORT}/api/queue/items/add",
-                        params={
-                            'uris': playlist.playlist,
-                            'playback': 'start',
-                            'clear': 'true'
-                        }
-                    ) as response:
-                        if response.status == 200:
-                            await log_and_send({"status": "success", "uid": uid, "playlist": playlist.playlist})
-                        else:
-                            await log_and_send({"status": "error", "message": "Failed to launch playlist", "uid": uid})
-            else:
-                await log_and_send({"status": "error", "message": "Unknown card", "uid": uid})
-            while await rfid_reader.read_uid() == (True, uid):
-                await asyncio.sleep(0.2)  # Wait for the card to be removed
-        else:
-            last_uid = None
-        await asyncio.sleep(0.2)
+class RFIDReader:
+    def __init__(self):
+        self.spi = Pn532Spi(Pn532Spi.SS0_GPIO8)
+        self.nfc = Pn532(self.spi)
+        self.nfc.begin()
+        self.nfc.SAMConfig()
+        print("RFID reader initialized")
+
+    def read_uid(self):
+        success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
+        if success:
+            uid_string = ''.join('{:02x}'.format(i) for i in uid)
+            return True, uid_string
+        return False, None
+
+rfid_reader = RFIDReader()

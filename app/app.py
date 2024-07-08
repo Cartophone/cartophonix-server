@@ -1,8 +1,11 @@
 import logging
+import asyncio
+import aiohttp
 from quart import Quart, request, jsonify
 from app.handlers.rfid_handler import rfid_reader
 from app.database import register_card, get_card_by_uid, update_playlist, delete_card, create_alarm, list_alarms, toggle_alarm, edit_alarm, get_activated_alarms
 from app.bluetooth_handler import scan_bluetooth_devices, trust_and_connect_device
+from config.config import SERVER_HOST, SERVER_PORT, MUSIC_HOST, MUSIC_PORT
 
 app = Quart(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -18,7 +21,9 @@ async def register():
     data = await request.get_json()
     logging.info(f"Received data: {data}")
     try:
-        uid = await rfid_reader.read_uid()  # Wait for card scan
+        success, uid = rfid_reader.read_uid()  # Wait for card scan
+        if not success:
+            return jsonify({"status": "error", "message": "No card detected"}), 400
         logging.info(f"Scanned UID: {uid}")
         existing_playlist = get_card_by_uid(uid)
         if existing_playlist:
@@ -36,7 +41,9 @@ async def register_overwrite():
     data = await request.get_json()
     logging.info(f"Received data: {data}")
     try:
-        uid = await rfid_reader.read_uid()  # Wait for card scan
+        success, uid = rfid_reader.read_uid()  # Wait for card scan
+        if not success:
+            return jsonify({"status": "error", "message": "No card detected"}), 400
         logging.info(f"Scanned UID: {uid}")
         existing_card = get_card_by_uid(uid)
         if existing_card:
@@ -135,8 +142,8 @@ async def start_read_mode():
 async def read_rfid_loop():
     logging.info("Read mode active")
     while True:
-        uid = await rfid_reader.read_uid()
-        if uid:
+        success, uid = rfid_reader.read_uid()
+        if success:
             logging.info(f"UID read: {uid}")
             playlist = get_card_by_uid(uid)
             if playlist:
