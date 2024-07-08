@@ -1,7 +1,8 @@
 from pocketbase import PocketBase
 from config.config import POCKETBASE_URL, POCKETBASE_PORT
 
-client = PocketBase(f"{POCKETBASE_URL}:{POCKETBASE_PORT}")
+# Ensure the URL includes the protocol
+client = PocketBase(f"http://{POCKETBASE_URL}:{POCKETBASE_PORT}")
 
 def register_card(uid, playlist, name, image):
     data = {
@@ -18,16 +19,13 @@ def get_card_by_uid(uid):
         return response.items[0].playlist
     return None
 
-def update_playlist(uid, new_playlist, name, image):
-    response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
-    if response.items:
-        card_id = response.items[0].id
-        data = {
-            "playlist": new_playlist,
-            "name": name,
-            "image": image
-        }
-        client.collection("cards").update(card_id, data)
+def update_playlist(card_id, new_playlist, new_name, new_image):
+    data = {
+        "playlist": new_playlist,
+        "name": new_name,
+        "image": new_image
+    }
+    client.collection("cards").update(card_id, data)
 
 def delete_card(card_id):
     client.collection("cards").delete(card_id)
@@ -46,10 +44,8 @@ def list_alarms():
 
 def toggle_alarm(alarm_id):
     alarm = client.collection("alarms").get_one(alarm_id)
-    data = {
-        "activated": not alarm.activated
-    }
-    client.collection("alarms").update(alarm_id, data)
+    new_state = not alarm.activated
+    client.collection("alarms").update(alarm_id, {"activated": new_state})
 
 def edit_alarm(alarm_id, new_hour, new_playlist):
     data = {
@@ -58,6 +54,6 @@ def edit_alarm(alarm_id, new_hour, new_playlist):
     }
     client.collection("alarms").update(alarm_id, data)
 
-def get_activated_alarms(current_time):
-    response = client.collection("alarms").get_list(1, 300, {"filter": f'hour="{current_time}" and activated=True'})
+def get_activated_alarms():
+    response = client.collection("alarms").get_list(1, 300, {"filter": "activated=True"})  # Adjust as necessary
     return [{"id": item.id, "hour": item.hour, "playlist": item.playlist} for item in response.items]
