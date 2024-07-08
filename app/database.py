@@ -40,6 +40,13 @@ def update_playlist(card_id, new_playlist):
     except Exception as e:
         logger.error(f"Error updating playlist for card ID {card_id}: {e}")
 
+def delete_card(card_id):
+    try:
+        client.collection("cards").delete(card_id)
+        logger.info(f"Card deleted with ID: {card_id}")
+    except Exception as e:
+        logger.error(f"Error deleting card with ID {card_id}: {e}")
+
 def get_all_alarms():
     try:
         response = client.collection("alarms").get_list(1, 300)  # Adjust as necessary
