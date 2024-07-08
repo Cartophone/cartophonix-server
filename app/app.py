@@ -41,7 +41,7 @@ async def register():
     playlist = data.get('playlist')
     name = data.get('name')
     image = data.get('image')  # This should be base64 encoded
-    success, uid = await rfid_reader.read_uid()  # Wait for card scan
+    uid = await rfid_reader.read_uid()  # Wait for card scan
 
     existing_playlist = get_card_by_uid(uid)
     if existing_playlist:
