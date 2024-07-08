@@ -15,7 +15,7 @@ from app.database import (
 from app.handlers.rfid_handler import handle_read
 from app.handlers.alarm_handler import check_alarms
 from app.handlers.bluetooth_handler import scan_bluetooth, connect_bluetooth
-from config.config import MUSIC_HOST, MUSIC_PORT
+from config.config import MUSIC_HOST, MUSIC_PORT, SERVER_HOST, SERVER_PORT
 
 app = Quart(__name__)
 rfid_reader = RFIDReader()
@@ -183,5 +183,5 @@ async def run_background_tasks():
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80)
+    app.run(host=SERVER_HOST, port=SERVER_PORT)
     asyncio.run(run_background_tasks())
