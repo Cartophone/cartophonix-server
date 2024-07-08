@@ -1,2 +1,4 @@
-# This file can be left empty or used to initialize the package.
-# For example, you can use it to import all handlers at once.
+# app/__init__.py
+
+from .app import app
+from .handlers import rfid_reader
