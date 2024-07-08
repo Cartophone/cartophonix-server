@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from quart import Quart, request, jsonify
 from app.rfid import RFIDReader
 from app.database import (
@@ -17,20 +18,22 @@ from app.handlers.alarm_handler import check_alarms
 from app.handlers.bluetooth_handler import scan_bluetooth, connect_bluetooth
 from config.config import MUSIC_HOST, MUSIC_PORT, SERVER_HOST, SERVER_PORT
 
+logging.basicConfig(level=logging.DEBUG)
+
 app = Quart(__name__)
 rfid_reader = RFIDReader()
 
 # Initialize read mode
 read_mode_active = True
 
-
 @app.route('/')
 async def home():
+    logging.info("Home endpoint hit")
     return "Cartophonix API is running."
-
 
 @app.route('/register', methods=['POST'])
 async def register():
+    logging.info("Register endpoint hit")
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
@@ -38,7 +41,7 @@ async def register():
     playlist = data.get('playlist')
     name = data.get('name')
     image = data.get('image')  # This should be base64 encoded
-    uid = await rfid_reader.read_uid()  # Wait for card scan
+    success, uid = await rfid_reader.read_uid()  # Wait for card scan
 
     existing_playlist = get_card_by_uid(uid)
     if existing_playlist:
@@ -61,9 +64,9 @@ async def register():
     read_mode_active = True  # Resume read mode
     return jsonify(response)
 
-
 @app.route('/register/overwrite', methods=['POST'])
 async def register_overwrite():
+    logging.info("Register overwrite endpoint hit")
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
@@ -85,9 +88,9 @@ async def register_overwrite():
     read_mode_active = True  # Resume read mode
     return jsonify(response)
 
-
 @app.route('/delete', methods=['POST'])
 async def delete():
+    logging.info("Delete endpoint hit")
     global read_mode_active
     read_mode_active = False  # Pause read mode
 
@@ -104,9 +107,9 @@ async def delete():
     read_mode_active = True  # Resume read mode
     return jsonify(response)
 
-
 @app.route('/alarm', methods=['POST'])
 async def create_alarm():
+    logging.info("Create alarm endpoint hit")
     data = await request.get_json()
     hour = data.get('hour')
     playlist = data.get('playlist')
@@ -120,9 +123,9 @@ async def create_alarm():
     }
     return jsonify(response)
 
-
 @app.route('/alarms', methods=['GET'])
 async def list_alarms():
+    logging.info("List alarms endpoint hit")
     alarms = list_alarms()
     response = {
         "status": "success",
@@ -130,9 +133,9 @@ async def list_alarms():
     }
     return jsonify(response)
 
-
 @app.route('/toggle_alarm', methods=['POST'])
 async def toggle_alarm():
+    logging.info("Toggle alarm endpoint hit")
     data = await request.get_json()
     alarm_id = data.get('alarm_id')
 
@@ -144,9 +147,9 @@ async def toggle_alarm():
     }
     return jsonify(response)
 
-
 @app.route('/edit_alarm', methods=['POST'])
 async def edit_alarm():
+    logging.info("Edit alarm endpoint hit")
     data = await request.get_json()
     alarm_id = data.get('alarm_id')
     new_hour = data.get('new_hour')
@@ -162,25 +165,23 @@ async def edit_alarm():
     }
     return jsonify(response)
 
-
 @app.route('/bluetooth/scan', methods=['GET'])
 async def bluetooth_scan():
+    logging.info("Bluetooth scan endpoint hit")
     devices = await scan_bluetooth()
     return jsonify({"status": "success", "devices": devices})
 
-
 @app.route('/bluetooth/connect', methods=['POST'])
 async def bluetooth_connect():
+    logging.info("Bluetooth connect endpoint hit")
     data = await request.get_json()
     mac_address = data.get('mac_address')
     await connect_bluetooth(mac_address)
     return jsonify({"status": "success", "message": f"Connected to {mac_address}"})
 
-
 async def run_background_tasks():
     asyncio.create_task(handle_read(rfid_reader))
     asyncio.create_task(check_alarms())
-
 
 if __name__ == "__main__":
     app.run(host=SERVER_HOST, port=SERVER_PORT)
