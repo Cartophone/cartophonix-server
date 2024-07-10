@@ -10,12 +10,12 @@ def home():
 
 @app.route('/create_playlist', methods=['POST'])
 def create_playlist():
-    data = request.get_json()
-    name = data.get('name')
-    uri = data.get('uri')
-    image = data.get('image')
-    
     try:
+        data = request.json
+        name = data.get("name")
+        uri = data.get("uri")
+        image = data.get("image")
+
         playlist_id = create_playlist_record(name, uri, image)
         return jsonify({"status": "success", "id": playlist_id}), 201
     except Exception as e:
