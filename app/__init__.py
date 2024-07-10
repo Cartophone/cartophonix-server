@@ -2,8 +2,5 @@ from flask import Flask
 
 app = Flask(__name__)
 
-app.config.from_pyfile('../config/config.py')
-
-from app.routes import *
-
-# Any additional setup for your app
+# Import routes to register the endpoints
+from app import routes

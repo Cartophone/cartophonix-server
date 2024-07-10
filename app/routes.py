@@ -1,202 +1,166 @@
-import os
-import base64
-import io
-import time
-from PIL import Image
 from flask import Flask, request, jsonify
-from config.config import POCKETBASE_HOST, POCKETBASE_PORT, SERVER_HOST, SERVER_PORT, MUSIC_HOST, MUSIC_PORT
-from app.rfid import RFIDReader
-from app.database import create_playlist_record, get_playlist_by_id, update_playlist_record, delete_playlist_record, dissociate_card_from_playlist
 import logging
+import threading
+from config.config import SERVER_HOST, SERVER_PORT
+from app.handlers.bluetooth_handler import scan_bluetooth_devices, trust_and_connect_device
+from app.handlers.alarms_handler import check_alarms, launch_playlist
+from app.handlers.rfid_handler import rfid_reader, stop_rfid_reading, start_rfid_reading, wait_for_card
+from app.database import create_playlist_record, get_playlist_by_id, update_playlist_record, delete_playlist_record, dissociate_card_from_playlist, get_all_playlists
 
 app = Flask(__name__)
-rfid_reader = RFIDReader()
 
-logging.basicConfig(level=logging.INFO)
-
-@app.route('/')
+@app.route("/")
 def home():
     logging.info("Home endpoint hit")
-    return "Welcome to the Cartophonix Server"
+    return jsonify({"status": "success", "message": "Cartophonix API"})
 
-@app.route('/create_playlist', methods=['POST'])
+@app.route("/create_playlist", methods=["POST"])
 def create_playlist():
+    data = request.json
+    name = data.get("name")
+    uri = data.get("uri")
+    image = data.get("image")
+    
     try:
-        data = request.json
-        name = data['name']
-        uri = data['uri']
-        image_base64 = data.get('image')
-
-        if image_base64:
-            image_data = base64.b64decode(image_base64)
-            image = Image.open(io.BytesIO(image_data))
-            image_filename = f"{name}.png"
-            image_path = os.path.join('/tmp', image_filename)
-            image.save(image_path)
-        else:
-            image_path = None
-
-        playlist_id = create_playlist_record(name, uri, image_path)
-        
-        if image_path:
-            os.remove(image_path)
-
-        response = {"status": "success", "id": playlist_id}
-        logging.info(f"Created playlist: {response}")
-        return jsonify(response)
+        playlist_id = create_playlist_record(name, uri, image)
+        logging.info(f"Playlist {name} created with ID: {playlist_id}")
+        return jsonify({"status": "success", "id": playlist_id})
     except Exception as e:
-        logging.error(f"Error in create_playlist endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
+        logging.error(f"Error creating playlist: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/associate_card', methods=['POST'])
+@app.route("/associate_card", methods=["POST"])
 def associate_card():
+    data = request.json
+    playlist_id = data.get("id")
+    
     try:
-        data = request.json
-        playlist_id = data['id']
-        timeout = 60  # seconds
-
-        logging.info(f"Associating card with playlist ID: {playlist_id}")
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            success, uid = rfid_reader.read_uid()
-            if success:
-                playlist = get_playlist_by_id(playlist_id)
-                if playlist and playlist.get('uid') and playlist['uid'] != uid:
-                    response = {"status": "error", "message": "Card already associated with another playlist"}
-                elif playlist and playlist.get('uid') == uid:
-                    response = {"status": "error", "message": "This card is already registered, overwrite?"}
-                else:
-                    update_playlist_record(playlist_id, {"uid": uid})
-                    response = {"status": "success", "message": "Card associated", "uid": uid}
-                logging.info(f"Associate card response: {response}")
-                return jsonify(response)
-            time.sleep(0.2)
-        
-        response = {"status": "error", "message": "Timeout waiting for card"}
-        logging.error(response)
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in associate_card endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
-
-@app.route('/edit_playlist', methods=['POST'])
-def edit_playlist():
-    try:
-        data = request.json
-        playlist_id = data['id']
-        name = data.get('name')
-        uri = data.get('uri')
-        image_base64 = data.get('image')
-
-        updates = {}
-        if name:
-            updates['name'] = name
-        if uri:
-            updates['uri'] = uri
-        if image_base64:
-            image_data = base64.b64decode(image_base64)
-            image = Image.open(io.BytesIO(image_data))
-            image_filename = f"{playlist_id}.png"
-            image_path = os.path.join('/tmp', image_filename)
-            image.save(image_path)
-            updates['image'] = image_path
-
-        update_playlist_record(playlist_id, updates)
-
-        if image_base64:
-            os.remove(image_path)
-
-        response = {"status": "success", "id": playlist_id}
-        logging.info(f"Edited playlist: {response}")
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in edit_playlist endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
-
-@app.route('/delete_playlist', methods=['POST'])
-def delete_playlist():
-    try:
-        data = request.json
-        playlist_id = data['id']
-        delete_playlist_record(playlist_id)
-        response = {"status": "success", "message": "Playlist deleted"}
-        logging.info(response)
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in delete_playlist endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
-
-@app.route('/dissociate_card', methods=['POST'])
-def dissociate_card():
-    try:
-        data = request.json
-        playlist_id = data['id']
-        dissociate_card_from_playlist(playlist_id)
-        response = {"status": "success", "message": "Card dissociated"}
-        logging.info(response)
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in dissociate_card endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
-
-@app.route('/associate_alarm', methods=['POST'])
-def associate_alarm():
-    try:
-        data = request.json
-        playlist_id = data['id']
-        hour = data['hour']
-        update_playlist_record(playlist_id, {"hour": hour, "activated": True})
-        response = {"status": "success", "message": "Alarm associated"}
-        logging.info(response)
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in associate_alarm endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
-
-@app.route('/toggle_alarm', methods=['POST'])
-def toggle_alarm():
-    try:
-        data = request.json
-        playlist_id = data['id']
         playlist = get_playlist_by_id(playlist_id)
-        if 'hour' in playlist and 'activated' in playlist:
-            new_status = not playlist['activated']
-            update_playlist_record(playlist_id, {"activated": new_status})
-            response = {"status": "success", "message": f"Alarm {'activated' if new_status else 'deactivated'}"}
-        else:
-            response = {"status": "error", "message": "No alarm set for this playlist"}
-        logging.info(response)
-        return jsonify(response)
+        stop_rfid_reading()
+        uid = wait_for_card(timeout=60)
+        
+        if not uid:
+            start_rfid_reading()
+            return jsonify({"status": "error", "message": "No card detected within timeout"}), 408
+        
+        if playlist.get("uid") and playlist["uid"] != uid:
+            start_rfid_reading()
+            return jsonify({"status": "error", "message": "This card is already registered. Overwrite?"}), 409
+        
+        playlist_with_same_uid = [p for p in get_all_playlists() if p.get("uid") == uid]
+        if playlist_with_same_uid and playlist_with_same_uid[0]["id"] != playlist_id:
+            start_rfid_reading()
+            return jsonify({"status": "error", "message": "A card cannot be associated with two playlists"}), 409
+        
+        update_playlist_record(playlist_id, {"uid": uid})
+        logging.info(f"Card with UID {uid} associated with playlist ID: {playlist_id}")
+        start_rfid_reading()
+        return jsonify({"status": "success", "message": "Card associated", "uid": uid})
     except Exception as e:
-        logging.error(f"Error in toggle_alarm endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
+        logging.error(f"Error associating card: {e}")
+        start_rfid_reading()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/edit_hour', methods=['POST'])
+@app.route("/edit_playlist", methods=["POST"])
+def edit_playlist():
+    data = request.json
+    playlist_id = data.get("id")
+    updates = {k: v for k, v in data.items() if k in ["name", "uri", "image"]}
+
+    try:
+        update_playlist_record(playlist_id, updates)
+        logging.info(f"Playlist {playlist_id} updated with {updates}")
+        return jsonify({"status": "success", "message": "Playlist updated"})
+    except Exception as e:
+        logging.error(f"Error updating playlist: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/delete_playlist", methods=["POST"])
+def delete_playlist():
+    data = request.json
+    playlist_id = data.get("id")
+
+    try:
+        delete_playlist_record(playlist_id)
+        logging.info(f"Playlist {playlist_id} deleted")
+        return jsonify({"status": "success", "message": "Playlist deleted"})
+    except Exception as e:
+        logging.error(f"Error deleting playlist: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/dissociate_card", methods=["POST"])
+def dissociate_card():
+    data = request.json
+    playlist_id = data.get("id")
+
+    try:
+        dissociate_card_from_playlist(playlist_id)
+        logging.info(f"Card dissociated from playlist {playlist_id}")
+        return jsonify({"status": "success", "message": "Card dissociated"})
+    except Exception as e:
+        logging.error(f"Error dissociating card: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/associate_alarm", methods=["POST"])
+def associate_alarm():
+    data = request.json
+    playlist_id = data.get("id")
+    hour = data.get("hour")
+
+    try:
+        update_playlist_record(playlist_id, {"hour": hour, "activated": True})
+        logging.info(f"Alarm associated with playlist {playlist_id} at {hour}")
+        return jsonify({"status": "success", "message": "Alarm associated"})
+    except Exception as e:
+        logging.error(f"Error associating alarm: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/toggle_alarm", methods=["POST"])
+def toggle_alarm():
+    data = request.json
+    playlist_id = data.get("id")
+
+    try:
+        playlist = get_playlist_by_id(playlist_id)
+        if "hour" not in playlist:
+            return jsonify({"status": "error", "message": "No alarm set yet for this playlist"}), 400
+
+        activated = not playlist.get("activated", False)
+        update_playlist_record(playlist_id, {"activated": activated})
+        logging.info(f"Alarm toggled for playlist {playlist_id} to {activated}")
+        return jsonify({"status": "success", "message": "Alarm toggled", "activated": activated})
+    except Exception as e:
+        logging.error(f"Error toggling alarm: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/edit_hour", methods=["POST"])
 def edit_hour():
-    try:
-        data = request.json
-        playlist_id = data['id']
-        hour = data['hour']
-        update_playlist_record(playlist_id, {"hour": hour})
-        response = {"status": "success", "message": "Alarm hour updated"}
-        logging.info(response)
-        return jsonify(response)
-    except Exception as e:
-        logging.error(f"Error in edit_hour endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
+    data = request.json
+    playlist_id = data.get("id")
+    hour = data.get("hour")
 
-@app.route('/dissociate_alarm', methods=['POST'])
-def dissociate_alarm():
     try:
-        data = request.json
-        playlist_id = data['id']
-        update_playlist_record(playlist_id, {"hour": None, "activated": False})
-        response = {"status": "success", "message": "Alarm dissociated"}
-        logging.info(response)
-        return jsonify(response)
+        update_playlist_record(playlist_id, {"hour": hour})
+        logging.info(f"Hour updated for playlist {playlist_id} to {hour}")
+        return jsonify({"status": "success", "message": "Hour updated"})
     except Exception as e:
-        logging.error(f"Error in dissociate_alarm endpoint: {e}")
-        return jsonify({"status": "error", "message": str(e)})
+        logging.error(f"Error updating hour: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/dissociate_alarm", methods=["POST"])
+def dissociate_alarm():
+    data = request.json
+    playlist_id = data.get("id")
+
+    try:
+        update_playlist_record(playlist_id, {"hour": None, "activated": None})
+        logging.info(f"Alarm dissociated from playlist {playlist_id}")
+        return jsonify({"status": "success", "message": "Alarm dissociated"})
+    except Exception as e:
+        logging.error(f"Error dissociating alarm: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host=SERVER_HOST, port=SERVER_PORT)
+    logging.basicConfig(level=logging.INFO)
+    from waitress import serve
+    serve(app, host=SERVER_HOST, port=SERVER_PORT)
