@@ -1,126 +1,73 @@
-from pocketbase import PocketBase
-from pocketbase.models.utils import BaseModel
-from config.config import POCKETBASE_HOST, POCKETBASE_PORT
+import httpx
 import logging
+from config.config import POCKETBASE_HOST, POCKETBASE_PORT
 
-client = PocketBase(f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}")
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+BASE_URL = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
 
-def create_playlist(name, uri, image=None):
-    data = {
-        "name": name,
-        "uri": uri,
-        "image": image,
-        "uid": None,
-        "hour": None,
-        "activated": False
-    }
+def create_playlist_record(name, uri, image_path=None):
     try:
-        record = client.collection("playlists").create(data)
-        return record
-    except Exception as e:
-        logger.error(f"Error creating playlist: {e}")
-        return None
+        data = {
+            "name": name,
+            "uri": uri
+        }
+        files = {}
+        if image_path:
+            files = {"image": open(image_path, "rb")}
 
-def update_playlist(id, name=None, uri=None, image=None):
-    data = {}
-    if name:
-        data["name"] = name
-    if uri:
-        data["uri"] = uri
-    if image:
-        data["image"] = image
-    try:
-        record = client.collection("playlists").update(id, data)
-        return record
+        response = httpx.post(BASE_URL, data=data, files=files)
+        response.raise_for_status()
+        return response.json()['id']
     except Exception as e:
-        logger.error(f"Error updating playlist: {e}")
-        return None
+        logging.error(f"Error creating playlist record: {e}")
+        raise
 
-def delete_playlist(id):
+def get_playlist_by_id(playlist_id):
     try:
-        client.collection("playlists").delete(id)
+        response = httpx.get(f"{BASE_URL}/{playlist_id}")
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        logger.error(f"Error deleting playlist: {e}")
+        logging.error(f"Error getting playlist by ID: {e}")
+        raise
 
-def get_playlist_by_id(id):
+def update_playlist_record(playlist_id, updates):
     try:
-        record = client.collection("playlists").get_one(id)
-        return record
+        response = httpx.patch(f"{BASE_URL}/{playlist_id}", json=updates)
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        logger.error(f"Error fetching playlist: {e}")
-        return None
+        logging.error(f"Error updating playlist record: {e}")
+        raise
 
-def associate_card(id, uid):
+def delete_playlist_record(playlist_id):
     try:
-        record = get_playlist_by_uid(uid)
-        if record:
-            return {"error": "Card already associated with another playlist"}
-        record = client.collection("playlists").update(id, {"uid": uid})
-        return record
+        response = httpx.delete(f"{BASE_URL}/{playlist_id}")
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        logger.error(f"Error associating card: {e}")
-        return None
+        logging.error(f"Error deleting playlist record: {e}")
+        raise
 
-def dissociate_card(id):
+def dissociate_card_from_playlist(playlist_id):
     try:
-        record = client.collection("playlists").update(id, {"uid": None})
-        return record
+        updates = {"uid": None}
+        response = update_playlist_record(playlist_id, updates)
+        return response
     except Exception as e:
-        logger.error(f"Error dissociating card: {e}")
-        return None
-
-def get_playlist_by_uid(uid):
-    try:
-        response = client.collection("playlists").get_list(1, 1, {"filter": f'uid="{uid}"'})
-        if response.items:
-            return response.items[0]
-        return None
-    except Exception as e:
-        logger.error(f"Error fetching playlist by UID: {e}")
-        return None
-
-def associate_alarm(id, hour):
-    try:
-        record = client.collection("playlists").update(id, {"hour": hour, "activated": True})
-        return record
-    except Exception as e:
-        logger.error(f"Error associating alarm: {e}")
-        return None
-
-def toggle_alarm(id):
-    try:
-        record = get_playlist_by_id(id)
-        if not record or not record.hour:
-            return {"error": "No alarm set for this playlist"}
-        new_status = not record.activated
-        record = client.collection("playlists").update(id, {"activated": new_status})
-        return record
-    except Exception as e:
-        logger.error(f"Error toggling alarm: {e}")
-        return None
-
-def edit_hour(id, hour):
-    try:
-        record = client.collection("playlists").update(id, {"hour": hour})
-        return record
-    except Exception as e:
-        logger.error(f"Error editing hour: {e}")
-        return None
-
-def dissociate_alarm(id):
-    try:
-        record = client.collection("playlists").update(id, {"hour": None, "activated": False})
-        return record
-    except Exception as e:
-        logger.error(f"Error dissociating alarm: {e}")
-        return None
+        logging.error(f"Error dissociating card from playlist: {e}")
+        raise
 
 def get_all_playlists():
     try:
-        response = client.collection("playlists").get_list(1, 100)  # Adjust as necessary
-        return response.items
+        response = httpx.get(BASE_URL)
+        response.raise_for_status()
+        return response.json()['items']
     except Exception as e:
-        logger.error(f"Error fetching all playlists: {e}")
-        return []
+        logging.error(f"Error getting all playlists: {e}")
+        raise
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    main()
