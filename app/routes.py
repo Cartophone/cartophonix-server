@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import request, jsonify
+from app import app
 from app.database import *
 from app.rfid import RFIDReader
-import requests
 import logging
 
-app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -154,6 +153,3 @@ def connect_bluetooth_route():
     if result:
         return jsonify({"status": "success"}), 200
     return jsonify({"error": "Failed to connect to Bluetooth device"}), 500
-
-if __name__ == "__main__":
-    app.run(host=SERVER_HOST, port=SERVER_PORT)
