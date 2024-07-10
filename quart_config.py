@@ -1,4 +1,2 @@
-from app.app import app
-
-if __name__ == "__main__":
-    app.run()
+bind = "0.0.0.0:8765"
+workers = 2

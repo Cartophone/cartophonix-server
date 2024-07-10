@@ -1,4 +1,12 @@
-# app/__init__.py
+from flask import Flask
+from config.config import SERVER_HOST, SERVER_PORT
+from app.routes import main
 
-from .app import app
-from .handlers import rfid_reader, check_alarms
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(main)
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(host=SERVER_HOST, port=SERVER_PORT)

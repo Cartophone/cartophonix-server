@@ -7,69 +7,139 @@ client = PocketBase(f"http://{POCKETBASE_URL}:{POCKETBASE_PORT}")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def register_card(uid, playlist, name, image):
+def register_playlist(name, uri, image=None):
     try:
         data = {
-            "uid": uid,
-            "playlist": playlist,
             "name": name,
-            "image": image
+            "uri": uri,
+            "image": image,
+            "hour": None,
+            "activated": False,
+            "uid": None
         }
-        client.collection("cards").create(data)
-        logger.info(f"Card registered with UID: {uid}")
+        record = client.collection("playlists").create(data)
+        logger.info(f"Playlist registered: {record.id}")
+        return record
     except Exception as e:
-        logger.error(f"Error registering card with UID {uid}: {e}")
+        logger.error(f"Error registering playlist: {e}")
+        return None
 
-def get_card_by_uid(uid):
+def get_playlist_by_id(playlist_id):
     try:
-        response = client.collection("cards").get_list(1, 1, {"filter": f'uid="{uid}"'})
+        record = client.collection("playlists").get_one(playlist_id)
+        return record
+    except Exception as e:
+        logger.error(f"Error fetching playlist: {e}")
+        return None
+
+def update_playlist(playlist_id, name=None, uri=None, image=None):
+    try:
+        data = {}
+        if name:
+            data["name"] = name
+        if uri:
+            data["uri"] = uri
+        if image:
+            data["image"] = image
+        record = client.collection("playlists").update(playlist_id, data)
+        logger.info(f"Playlist updated: {record.id}")
+        return record
+    except Exception as e:
+        logger.error(f"Error updating playlist: {e}")
+        return None
+
+def delete_playlist(playlist_id):
+    try:
+        client.collection("playlists").delete(playlist_id)
+        logger.info(f"Playlist deleted: {playlist_id}")
+    except Exception as e:
+        logger.error(f"Error deleting playlist: {e}")
+
+def associate_card(playlist_id, uid):
+    try:
+        playlist = get_playlist_by_id(playlist_id)
+        if not playlist:
+            return {"error": "Playlist not found"}
+
+        if playlist.uid:
+            return {"error": "This playlist already has a card associated"}
+
+        # Check if the UID is already associated with another playlist
+        response = client.collection("playlists").get_list(1, 1, {"filter": f'uid="{uid}"'})
         if response.items:
-            return response.items[0]
-        return None
-    except Exception as e:
-        logger.error(f"Error fetching card by UID {uid}: {e}")
-        return None
+            return {"error": "This card is already associated with another playlist"}
 
-def update_playlist(card_id, new_playlist):
+        # Associate card
+        playlist.uid = uid
+        updated_playlist = client.collection("playlists").update(playlist_id, {"uid": uid})
+        logger.info(f"Card {uid} associated with playlist {playlist_id}")
+        return updated_playlist
+    except Exception as e:
+        logger.error(f"Error associating card: {e}")
+        return {"error": str(e)}
+
+def dissociate_card(playlist_id):
     try:
-        data = {
-            "playlist": new_playlist
-        }
-        client.collection("cards").update(card_id, data)
-        logger.info(f"Playlist updated for card ID: {card_id}")
+        playlist = get_playlist_by_id(playlist_id)
+        if not playlist:
+            return {"error": "Playlist not found"}
+        
+        playlist.uid = None
+        updated_playlist = client.collection("playlists").update(playlist_id, {"uid": None})
+        logger.info(f"Card dissociated from playlist {playlist_id}")
+        return updated_playlist
     except Exception as e:
-        logger.error(f"Error updating playlist for card ID {card_id}: {e}")
+        logger.error(f"Error dissociating card: {e}")
+        return {"error": str(e)}
 
-def delete_card(card_id):
-    try:
-        client.collection("cards").delete(card_id)
-        logger.info(f"Card deleted with ID: {card_id}")
-    except Exception as e:
-        logger.error(f"Error deleting card with ID {card_id}: {e}")
-
-def get_all_alarms():
-    try:
-        response = client.collection("alarms").get_list(1, 300)  # Adjust as necessary
-        return [{"id": item.id, "hour": item.hour, "playlist": item.playlist, "activated": item.activated} for item in response.items]
-    except Exception as e:
-        logger.error(f"Error fetching all alarms: {e}")
-        return []
-
-def create_alarm(hour, playlist):
+def associate_alarm(playlist_id, hour):
     try:
         data = {
             "hour": hour,
-            "playlist": playlist,
             "activated": True
         }
-        client.collection("alarms").create(data)
-        logger.info(f"Alarm created for hour: {hour} with playlist: {playlist}")
+        record = client.collection("playlists").update(playlist_id, data)
+        logger.info(f"Alarm associated with playlist: {record.id}")
+        return record
     except Exception as e:
-        logger.error(f"Error creating alarm for hour {hour}: {e}")
+        logger.error(f"Error associating alarm: {e}")
+        return None
 
-def delete_alarm(alarm_id):
+def toggle_alarm(playlist_id):
     try:
-        client.collection("alarms").delete(alarm_id)
-        logger.info(f"Alarm deleted with ID: {alarm_id}")
+        playlist = get_playlist_by_id(playlist_id)
+        if not playlist:
+            return {"error": "Playlist not found"}
+        
+        if not playlist.hour:
+            return {"error": "No alarm set for this playlist"}
+
+        playlist.activated = not playlist.activated
+        updated_playlist = client.collection("playlists").update(playlist_id, {"activated": playlist.activated})
+        logger.info(f"Alarm toggled for playlist {playlist_id}")
+        return updated_playlist
     except Exception as e:
-        logger.error(f"Error deleting alarm with ID {alarm_id}: {e}")
+        logger.error(f"Error toggling alarm: {e}")
+        return {"error": str(e)}
+
+def edit_hour(playlist_id, hour):
+    try:
+        record = client.collection("playlists").update(playlist_id, {"hour": hour})
+        logger.info(f"Hour updated for playlist: {record.id}")
+        return record
+    except Exception as e:
+        logger.error(f"Error updating hour: {e}")
+        return None
+
+def dissociate_alarm(playlist_id):
+    try:
+        data = {
+            "hour": None,
+            "activated": False
+        }
+        record = client.collection("playlists").update(playlist_id, data)
+        logger.info(f"Alarm dissociated from playlist: {record.id}")
+        return record
+    except Exception as e:
+        logger.error(f"Error dissociating alarm: {e}")
+        return None

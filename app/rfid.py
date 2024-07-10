@@ -1,5 +1,9 @@
-import asyncio
+import time
 from pn532pi import Pn532Spi, Pn532, pn532
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class RFIDReader:
     def __init__(self):
@@ -7,12 +11,11 @@ class RFIDReader:
         self.nfc = Pn532(self.spi)
         self.nfc.begin()
         self.nfc.SAMConfig()
-        print("RFID reader initialized")
+        logger.info("RFID reader initialized")
 
-    async def read_uid(self):
-        while True:
-            success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
-            if success:
-                uid_string = ''.join('{:02x}'.format(i) for i in uid)
-                return uid_string
-            await asyncio.sleep(0.2)  # Non-blocking wait
+    def read_uid(self):
+        success, uid = self.nfc.readPassiveTargetID(pn532.PN532_MIFARE_ISO14443A_106KBPS)
+        if success:
+            uid_string = ''.join('{:02x}'.format(i) for i in uid)
+            return True, uid_string
+        return False, None
