@@ -16,12 +16,17 @@ def create_playlist_record(name, uri, image=None):
         files = None
 
         if image:
-            image_data = base64.b64decode(image)
-            image_file = BytesIO(image_data)
-            image_obj = Image.open(image_file)
-            buffered = BytesIO()
-            image_obj.save(buffered, format="JPEG")
-            files = {'image': ('image.jpg', buffered.getvalue(), 'image/jpeg')}
+            try:
+                image_data = base64.b64decode(image)
+                image_file = BytesIO(image_data)
+                image_obj = Image.open(image_file)
+                buffered = BytesIO()
+                image_obj.save(buffered, format="JPEG")
+                buffered.seek(0)
+                files = {'image': ('image.jpg', buffered, 'image/jpeg')}
+            except Exception as e:
+                logging.error(f"Error processing image: {e}")
+                raise
 
         response = requests.post(base_url, data=data, files=files)
         response.raise_for_status()
