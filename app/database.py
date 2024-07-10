@@ -1,42 +1,45 @@
 import requests
 import logging
-import base64
-from io import BytesIO
-from PIL import Image
 from config.config import POCKETBASE_HOST, POCKETBASE_PORT
-
-base_url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
+from PIL import Image
+import base64
+import io
 
 def create_playlist_record(name, uri, image=None):
     try:
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
         data = {
             "name": name,
             "uri": uri
         }
+        
         files = None
-
         if image:
-            try:
-                image_data = base64.b64decode(image)
-                image_file = BytesIO(image_data)
-                image_obj = Image.open(image_file)
-                image_obj.verify()  # Check that it's a valid image
-                image_file.seek(0)  # Reset the stream to the beginning
-                files = {'image': ('image.jpg', image_file, 'image/jpeg')}
-            except Exception as e:
-                logging.error(f"Error processing image: {e}")
-                raise
+            image_data = base64.b64decode(image)
+            image_file = io.BytesIO(image_data)
+            img = Image.open(image_file)
+            img_format = img.format
 
-        response = requests.post(base_url, data=data, files=files)
+            if img_format not in ['JPEG', 'PNG']:
+                raise ValueError("Unsupported image format")
+
+            files = {
+                "image": ("image." + img_format.lower(), image_data, f"image/{img_format.lower()}")
+            }
+
+        response = requests.post(url, data=data, files=files)
         response.raise_for_status()
         return response.json()["id"]
     except requests.RequestException as e:
         logging.error(f"Error creating playlist record: {e}")
         raise
+    except Exception as e:
+        logging.error(f"General error creating playlist record: {e}")
+        raise
 
 def get_playlist_by_id(playlist_id):
     try:
-        url = f"{base_url}/{playlist_id}"
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records/{playlist_id}"
         response = requests.get(url)
         response.raise_for_status()
         return response.json()
@@ -46,8 +49,9 @@ def get_playlist_by_id(playlist_id):
 
 def get_card_by_uid(uid):
     try:
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
         params = {"filter": f"uid={uid}"}
-        response = requests.get(base_url, params=params)
+        response = requests.get(url, params=params)
         response.raise_for_status()
         records = response.json().get("items", [])
         if records:
@@ -59,7 +63,8 @@ def get_card_by_uid(uid):
 
 def get_all_playlists():
     try:
-        response = requests.get(base_url)
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
+        response = requests.get(url)
         response.raise_for_status()
         return response.json().get("items", [])
     except requests.RequestException as e:
@@ -68,7 +73,7 @@ def get_all_playlists():
 
 def update_playlist_record(playlist_id, updates):
     try:
-        url = f"{base_url}/{playlist_id}"
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records/{playlist_id}"
         response = requests.patch(url, json=updates)
         response.raise_for_status()
         return response.json()
@@ -78,7 +83,7 @@ def update_playlist_record(playlist_id, updates):
 
 def delete_playlist_record(playlist_id):
     try:
-        url = f"{base_url}/{playlist_id}"
+        url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records/{playlist_id}"
         response = requests.delete(url)
         response.raise_for_status()
         return response.json()
