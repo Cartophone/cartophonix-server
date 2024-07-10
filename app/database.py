@@ -1,9 +1,9 @@
 from pocketbase import PocketBase
 from pocketbase.models.utils import BaseModel
-from config.config import POCKETBASE_URL, POCKETBASE_PORT
+from config.config import POCKETBASE_HOST, POCKETBASE_PORT
 import logging
 
-client = PocketBase(f"http://{POCKETBASE_URL}:{POCKETBASE_PORT}")
+client = PocketBase(f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
