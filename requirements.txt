@@ -1,6 +1,5 @@
 Flask
 requests
-waitress
 pn532pi
 pillow
 logging
