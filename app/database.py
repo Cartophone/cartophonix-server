@@ -1,34 +1,36 @@
 import requests
 import logging
-from io import BytesIO
+from config.config import POCKETBASE_HOST, POCKETBASE_PORT
 from PIL import Image
 import base64
-from config.config import POCKETBASE_HOST, POCKETBASE_PORT
+import io
 
 def create_playlist_record(name, uri, image=None):
     try:
         url = f"http://{POCKETBASE_HOST}:{POCKETBASE_PORT}/api/collections/playlists/records"
         data = {
             "name": name,
-            "uri": uri,
+            "uri": uri
         }
 
         files = None
         if image:
             image_data = base64.b64decode(image)
-            image_file = BytesIO(image_data)
-            img = Image.open(image_file)
-            img_format = img.format if img.format in ["JPEG", "PNG"] else "JPEG"
-            image_file.seek(0)
-            files = {
-                "image": (f"image.{img_format.lower()}", image_file, f"image/{img_format.lower()}")
-            }
+            image_io = io.BytesIO(image_data)
+            img = Image.open(image_io)
+            img_format = img.format.lower()
+            if img_format not in ["jpeg", "png"]:
+                img_format = "jpeg"
+            files = {"image": ("image." + img_format, image_data, f"image/{img_format}")}
 
         response = requests.post(url, data=data, files=files)
         response.raise_for_status()
         return response.json()["id"]
     except requests.RequestException as e:
         logging.error(f"Error creating playlist record: {e}")
+        raise
+    except Exception as e:
+        logging.error(f"General error: {e}")
         raise
 
 def get_playlist_by_id(playlist_id):
