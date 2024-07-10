@@ -20,10 +20,9 @@ def create_playlist_record(name, uri, image=None):
                 image_data = base64.b64decode(image)
                 image_file = BytesIO(image_data)
                 image_obj = Image.open(image_file)
-                buffered = BytesIO()
-                image_obj.save(buffered, format="JPEG")
-                buffered.seek(0)
-                files = {'image': ('image.jpg', buffered, 'image/jpeg')}
+                image_obj.verify()  # Check that it's a valid image
+                image_file.seek(0)  # Reset the stream to the beginning
+                files = {'image': ('image.jpg', image_file, 'image/jpeg')}
             except Exception as e:
                 logging.error(f"Error processing image: {e}")
                 raise
